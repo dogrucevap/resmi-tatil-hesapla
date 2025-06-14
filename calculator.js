@@ -19,63 +19,43 @@ const CATEGORIES = {
  */
 function getIslamicHolidays(year) {
     const holidays = [];
-    // Hicri yılı bulmak için Miladi yıldan 579 veya 578 çıkarılır.
-    // Daha doğru bir yaklaşım, belirli bir İslami ayın o Miladi yıldaki başlangıcını bulmaktır.
-    // moment-hijri, Miladi yıla göre Hicri tarihleri bulabilir.
 
-    // Ramazan Bayramı (1 Şevval)
-    // Önce o Miladi yıl içindeki 1 Ramazan'ı bulup, sonra Şevval'e geçmek daha doğru olabilir
-    // Ancak doğrudan Şevval'i de deneyebiliriz.
-    // moment-hijri'de aylar 0'dan başlar (Ramazan=8, Şevval=9, Zilhicce=11)
+    const addHolidayIfInYear = (name, startDateObj, endDateObj, category, targetYear, holidaysArray) => {
+        // Hem başlangıç hem de bitiş tarihinin Miladi yılı, hedeflenen yılla aynı olmalı
+        if (startDateObj.getFullYear() === targetYear && endDateObj.getFullYear() === targetYear) {
+            holidaysArray.push({
+                name,
+                startDate: formatDateISO(startDateObj),
+                endDate: formatDateISO(endDateObj),
+                category
+            });
+        }
+    };
 
-    // Yılın başında ve sonunda farklı Hicri yıllara denk gelebilir.
-    // Bu yüzden Miladi yılın ortasındaki bir Hicri tarihi referans alıp,
-    // o Hicri yılın Şevval ve Zilhicce'sini bulmak daha güvenli olabilir.
-    // Örneğin, Miladi yılın ortası (Haziran) hangi Hicri yıla denk geliyor?
-    const midYearHijri = moment(`${year}-06-15`, 'YYYY-MM-DD').iYear();
+    // Miladi yılın ortasındaki bir Hicri tarihi referans al
+    const midGregorianDateStr = `${year}-06-15`;
+    const midYearHijriRef = moment(midGregorianDateStr, 'YYYY-MM-DD').iYear();
+    
+    // Referans Hicri yıl, bir önceki ve bir sonraki Hicri yılları test et
+    const hijriYearsToTest = [midYearHijriRef - 1, midYearHijriRef, midYearHijriRef + 1];
+    const processedHijriYears = [...new Set(hijriYearsToTest)]; // Benzersiz Hicri yılları al
 
-    // Ramazan Bayramı (1 Şevval)
-    const ramadanBayramStart = moment().iYear(midYearHijri).iMonth(9).iDate(1).toDate(); // Şevval = 9
-    const arefeRamazan = addDays(ramadanBayramStart, -1);
-    holidays.push({ name: 'Ramazan Bayramı Arefesi', startDate: formatDateISO(arefeRamazan), endDate: formatDateISO(arefeRamazan), category: CATEGORIES.RESMI });
-    holidays.push({ name: 'Ramazan Bayramı', startDate: formatDateISO(ramadanBayramStart), endDate: formatDateISO(addDays(ramadanBayramStart, 2)), category: CATEGORIES.RESMI });
+    for (const hYear of processedHijriYears) {
+        // Ramazan Bayramı (1 Şevval) - moment-hijri'de Şevval 9. aydır (0-indeksli)
+        const ramadanBayramStart = moment().iYear(hYear).iMonth(9).iDate(1).toDate();
+        const arefeRamazan = addDays(ramadanBayramStart, -1);
+        const ramadanBayramEnd = addDays(ramadanBayramStart, 2);
 
-    // Kurban Bayramı (10 Zilhicce)
-    const kurbanBayramStart = moment().iYear(midYearHijri).iMonth(11).iDate(10).toDate(); // Zilhicce = 11
-    const arefeKurban = addDays(kurbanBayramStart, -1);
-    holidays.push({ name: 'Kurban Bayramı Arefesi', startDate: formatDateISO(arefeKurban), endDate: formatDateISO(arefeKurban), category: CATEGORIES.RESMI });
-    holidays.push({ name: 'Kurban Bayramı', startDate: formatDateISO(kurbanBayramStart), endDate: formatDateISO(addDays(kurbanBayramStart, 3)), category: CATEGORIES.RESMI });
+        addHolidayIfInYear('Ramazan Bayramı Arefesi', arefeRamazan, arefeRamazan, CATEGORIES.RESMI, year, holidays);
+        addHolidayIfInYear('Ramazan Bayramı', ramadanBayramStart, ramadanBayramEnd, CATEGORIES.RESMI, year, holidays);
 
-    // Bazen bir sonraki Hicri yılın bayramı da o Miladi yıla denk gelebilir.
-    // Veya bir önceki Hicri yılın bayramı. Bunu kontrol etmek için:
-    // Ramazan Bayramı (bir sonraki Hicri yıl)
-    const ramadanBayramStartNextHijri = moment().iYear(midYearHijri + 1).iMonth(9).iDate(1).toDate();
-    if (ramadanBayramStartNextHijri.getFullYear() === year) {
-        const arefeRamazanNext = addDays(ramadanBayramStartNextHijri, -1);
-        holidays.push({ name: 'Ramazan Bayramı Arefesi (Sonraki Hicri Yıl)', startDate: formatDateISO(arefeRamazanNext), endDate: formatDateISO(arefeRamazanNext), category: CATEGORIES.RESMI });
-        holidays.push({ name: 'Ramazan Bayramı (Sonraki Hicri Yıl)', startDate: formatDateISO(ramadanBayramStartNextHijri), endDate: formatDateISO(addDays(ramadanBayramStartNextHijri, 2)), category: CATEGORIES.RESMI });
-    }
-     // Kurban Bayramı (bir sonraki Hicri yıl)
-    const kurbanBayramStartNextHijri = moment().iYear(midYearHijri + 1).iMonth(11).iDate(10).toDate();
-    if (kurbanBayramStartNextHijri.getFullYear() === year) {
-        const arefeKurbanNext = addDays(kurbanBayramStartNextHijri, -1);
-        holidays.push({ name: 'Kurban Bayramı Arefesi (Sonraki Hicri Yıl)', startDate: formatDateISO(arefeKurbanNext), endDate: formatDateISO(arefeKurbanNext), category: CATEGORIES.RESMI });
-        holidays.push({ name: 'Kurban Bayramı (Sonraki Hicri Yıl)', startDate: formatDateISO(kurbanBayramStartNextHijri), endDate: formatDateISO(addDays(kurbanBayramStartNextHijri, 3)), category: CATEGORIES.RESMI });
-    }
-
-    // Ramazan Bayramı (bir önceki Hicri yıl)
-    const ramadanBayramStartPrevHijri = moment().iYear(midYearHijri - 1).iMonth(9).iDate(1).toDate();
-    if (ramadanBayramStartPrevHijri.getFullYear() === year) {
-        const arefeRamazanPrev = addDays(ramadanBayramStartPrevHijri, -1);
-        holidays.push({ name: 'Ramazan Bayramı Arefesi (Önceki Hicri Yıl)', startDate: formatDateISO(arefeRamazanPrev), endDate: formatDateISO(arefeRamazanPrev), category: CATEGORIES.RESMI });
-        holidays.push({ name: 'Ramazan Bayramı (Önceki Hicri Yıl)', startDate: formatDateISO(ramadanBayramStartPrevHijri), endDate: formatDateISO(addDays(ramadanBayramStartPrevHijri, 2)), category: CATEGORIES.RESMI });
-    }
-    // Kurban Bayramı (bir önceki Hicri yıl)
-    const kurbanBayramStartPrevHijri = moment().iYear(midYearHijri - 1).iMonth(11).iDate(10).toDate();
-    if (kurbanBayramStartPrevHijri.getFullYear() === year) {
-        const arefeKurbanPrev = addDays(kurbanBayramStartPrevHijri, -1);
-        holidays.push({ name: 'Kurban Bayramı Arefesi (Önceki Hicri Yıl)', startDate: formatDateISO(arefeKurbanPrev), endDate: formatDateISO(arefeKurbanPrev), category: CATEGORIES.RESMI });
-        holidays.push({ name: 'Kurban Bayramı (Önceki Hicri Yıl)', startDate: formatDateISO(kurbanBayramStartPrevHijri), endDate: formatDateISO(addDays(kurbanBayramStartPrevHijri, 3)), category: CATEGORIES.RESMI });
+        // Kurban Bayramı (10 Zilhicce) - moment-hijri'de Zilhicce 11. aydır (0-indeksli)
+        const kurbanBayramStart = moment().iYear(hYear).iMonth(11).iDate(10).toDate();
+        const arefeKurban = addDays(kurbanBayramStart, -1);
+        const kurbanBayramEnd = addDays(kurbanBayramStart, 3);
+        
+        addHolidayIfInYear('Kurban Bayramı Arefesi', arefeKurban, arefeKurban, CATEGORIES.RESMI, year, holidays);
+        addHolidayIfInYear('Kurban Bayramı', kurbanBayramStart, kurbanBayramEnd, CATEGORIES.RESMI, year, holidays);
     }
     
     // Yinelenenleri kaldır (startDate ve name'e göre)
@@ -183,26 +163,68 @@ function calculateAllDates(year) {
 
     // --- 3. BELİRLİ GÜNLER VE HAFTALAR ---
     const belirliGunler = [
-        // Haftalar
-        { name: 'Enerji Tasarrufu Haftası', ...getNthWeekOfMonth(year, 0, 2) },
-        { name: 'Yeşilay Haftası', startDate: formatDateISO(new Date(year, 2, 1)), endDate: formatDateISO(new Date(year, 2, 7)) },
-        { name: 'Bilim ve Teknoloji Haftası', startDate: formatDateISO(new Date(year, 2, 8)), endDate: formatDateISO(new Date(year, 2, 14)) },
-        { name: 'Tüketiciyi Koruma Haftası', startDate: formatDateISO(new Date(year, 2, 15)), endDate: formatDateISO(new Date(year, 2, 21)) },
-        { name: 'Orman Haftası', startDate: formatDateISO(new Date(year, 2, 21)), endDate: formatDateISO(new Date(year, 2, 26)) },
-        { name: 'Kütüphaneler Haftası', startDate: formatDateISO(startOfWeek(lastDayOfMonth(new Date(year, 2, 1)), { weekStartsOn: 1 })), endDate: formatDateISO(endOfWeek(lastDayOfMonth(new Date(year, 2, 1)), { weekStartsOn: 1 })) },
-        { name: 'Turizm Haftası', startDate: formatDateISO(new Date(year, 3, 15)), endDate: formatDateISO(new Date(year, 3, 22)) },
-        { name: 'Engelliler Haftası', startDate: formatDateISO(new Date(year, 4, 10)), endDate: formatDateISO(new Date(year, 4, 16)) },
-        { name: 'Müzeler Haftası', startDate: formatDateISO(new Date(year, 4, 18)), endDate: formatDateISO(new Date(year, 4, 24)) },
-        { name: 'İlköğretim Haftası', ...getNthWeekOfMonth(year, 8, 3) },
-        { name: 'Kızılay Haftası', startDate: formatDateISO(new Date(year, 9, 29)), endDate: formatDateISO(new Date(year, 10, 4)) },
-        { name: 'Öğretmenler Günü', startDate: formatDateISO(new Date(year, 10, 24)), endDate: formatDateISO(new Date(year, 10, 24)) },
-        { name: 'İnsan Hakları ve Demokrasi Haftası', startDate: formatDateISO(startOfWeek(new Date(year, 11, 10), { weekStartsOn: 1 })), endDate: formatDateISO(endOfWeek(new Date(year, 11, 10), { weekStartsOn: 1 })) },
-        { name: 'Tutum, Yatırım ve Türk Malları Haftası', startDate: formatDateISO(new Date(year, 11, 12)), endDate: formatDateISO(new Date(year, 11, 18)) },
+        // Ocak
+        { name: 'Enerji Tasarrufu Haftası', ...getNthWeekOfMonth(year, 0, 2) }, // Ocak ayının ikinci haftası
+        { 
+            name: 'Veremle Savaş Eğitimi Haftası', // Ocak ayının ilk Pazartesi gününü takip eden hafta
+            startDate: formatDateISO(startOfWeek(getNthDayOfMonth(year, 0, 1, 1), { weekStartsOn: 1 })), 
+            endDate: formatDateISO(endOfWeek(getNthDayOfMonth(year, 0, 1, 1), { weekStartsOn: 1 }))
+        },
 
-        // Tek Günler
+        // Mart
+        { 
+            name: 'Yeşilay Haftası', // 1 Mart\'ı içine alan hafta
+            startDate: formatDateISO(startOfWeek(new Date(year, 2, 1), { weekStartsOn: 1 })), 
+            endDate: formatDateISO(endOfWeek(new Date(year, 2, 1), { weekStartsOn: 1 })) 
+        },
+        { name: 'Girişimcilik Haftası', ...getNthWeekOfMonth(year, 2, 1) }, // Mart ayının ilk haftası
         { name: '8 Mart Dünya Kadınlar Günü', startDate: formatDateISO(new Date(year, 2, 8)), endDate: formatDateISO(new Date(year, 2, 8))},
-        { name: 'İstiklâl Marşı\'nın Kabulü', startDate: formatDateISO(new Date(year, 2, 12)), endDate: formatDateISO(new Date(year, 2, 12))},
+        { name: 'Bilim ve Teknoloji Haftası', startDate: formatDateISO(new Date(year, 2, 8)), endDate: formatDateISO(new Date(year, 2, 14)) }, // 8-14 Mart
+        { name: '12 Mart İstiklâl Marşı\'nın Kabulü ve Mehmet Akif Ersoy\'u Anma Günü', startDate: formatDateISO(new Date(year, 2, 12)), endDate: formatDateISO(new Date(year, 2, 12))},
+        { name: 'Tüketiciyi Koruma Haftası', startDate: formatDateISO(new Date(year, 2, 15)), endDate: formatDateISO(new Date(year, 2, 21)) }, // 15-21 Mart
         { name: '18 Mart Şehitler Günü', startDate: formatDateISO(new Date(year, 2, 18)), endDate: formatDateISO(new Date(year, 2, 18))},
+        { name: 'Yaşlılara Saygı Haftası', startDate: formatDateISO(new Date(year, 2, 18)), endDate: formatDateISO(new Date(year, 2, 24)) }, // 18-24 Mart
+        { 
+            name: 'Türk Dünyası ve Toplulukları Haftası', // 21 Mart Nevruz gününü içine alan hafta
+            startDate: formatDateISO(startOfWeek(new Date(year, 2, 21), { weekStartsOn: 1 })), 
+            endDate: formatDateISO(endOfWeek(new Date(year, 2, 21), { weekStartsOn: 1 })) 
+        },
+        { name: 'Orman Haftası', startDate: formatDateISO(new Date(year, 2, 21)), endDate: formatDateISO(new Date(year, 2, 26)) }, // 21-26 Mart
+        { name: 'Kütüphaneler Haftası', startDate: formatDateISO(startOfWeek(lastDayOfMonth(new Date(year, 2, 1)), { weekStartsOn: 1 })), endDate: formatDateISO(endOfWeek(lastDayOfMonth(new Date(year, 2, 1)), { weekStartsOn: 1 })) }, // Mart ayının son Pazartesi günü başlayan hafta
+
+        // Nisan
+        { name: 'Kanser Haftası', startDate: formatDateISO(new Date(year, 3, 1)), endDate: formatDateISO(new Date(year, 3, 7)) }, // 1-7 Nisan
+        { name: 'Turizm Haftası', startDate: formatDateISO(new Date(year, 3, 15)), endDate: formatDateISO(new Date(year, 3, 22)) }, // 15-22 Nisan
+        
+        // Mayıs
+        { name: 'Trafik ve İlkyardım Haftası', ...getNthWeekOfMonth(year, 4, 1) }, // Mayıs ayının ilk haftası
+        { name: 'Vakıflar Haftası', ...getNthWeekOfMonth(year, 4, 2) }, // Mayıs ayının ikinci haftası
+        { name: 'Engelliler Haftası', startDate: formatDateISO(new Date(year, 4, 10)), endDate: formatDateISO(new Date(year, 4, 16)) }, // 10-16 Mayıs
+        { name: 'Müzeler Haftası', startDate: formatDateISO(new Date(year, 4, 18)), endDate: formatDateISO(new Date(year, 4, 24)) }, // 18-24 Mayıs
+
+        // Eylül
+        { name: 'İlköğretim Haftası', ...getNthWeekOfMonth(year, 8, 3) }, // Eylül ayının üçüncü haftası
+        { name: 'Gaziler Günü', startDate: formatDateISO(new Date(year, 8, 19)), endDate: formatDateISO(new Date(year, 8, 19)) }, // 19 Eylül
+
+        // Ekim
+        { name: 'Hayvanları Koruma Günü', startDate: formatDateISO(new Date(year, 9, 4)), endDate: formatDateISO(new Date(year, 9, 4)) }, // 4 Ekim
+        // Ahilik Kültürü Haftası (Bakanlıkça belirlenen hafta) - Programatik olarak eklenemedi.
+        { name: 'Birleşmiş Milletler Günü', startDate: formatDateISO(new Date(year, 9, 24)), endDate: formatDateISO(new Date(year, 9, 24)) }, // 24 Ekim
+        { name: 'Kızılay Haftası', startDate: formatDateISO(new Date(year, 9, 29)), endDate: formatDateISO(new Date(year, 10, 4)) }, // 29 Ekim-4 Kasım
+
+        // Kasım
+        { name: 'Organ Bağışı ve Nakli Haftası', startDate: formatDateISO(new Date(year, 10, 3)), endDate: formatDateISO(new Date(year, 10, 9)) }, // 3-9 Kasım
+        { name: 'Lösemili Çocuklar Haftası', startDate: formatDateISO(new Date(year, 10, 2)), endDate: formatDateISO(new Date(year, 10, 8)) }, // 2-8 Kasım
+        { name: 'Atatürk Haftası', startDate: formatDateISO(new Date(year, 10, 10)), endDate: formatDateISO(new Date(year, 10, 16)) }, // 10-16 Kasım
+        { name: 'Afet Eğitimi Hazırlık Günü', startDate: formatDateISO(new Date(year, 10, 12)), endDate: formatDateISO(new Date(year, 10, 12)) }, // 12 Kasım
+        { name: 'Dünya Diyabet Günü', startDate: formatDateISO(new Date(year, 10, 14)), endDate: formatDateISO(new Date(year, 10, 14)) }, // 14 Kasım
+        { name: 'Öğretmenler Günü', startDate: formatDateISO(new Date(year, 10, 24)), endDate: formatDateISO(new Date(year, 10, 24)) }, // 24 Kasım
+        { name: 'Ağız ve Diş Sağlığı Haftası', startDate: formatDateISO(new Date(year, 10, 22)), endDate: formatDateISO(new Date(year, 10, 27)) }, // 22-27 Kasım
+        
+        // Aralık
+        { name: 'Dünya Engelliler Günü', startDate: formatDateISO(new Date(year, 11, 3)), endDate: formatDateISO(new Date(year, 11, 3)) }, // 3 Aralık
+        { name: 'İnsan Hakları ve Demokrasi Haftası', startDate: formatDateISO(startOfWeek(new Date(year, 11, 10), { weekStartsOn: 1 })), endDate: formatDateISO(endOfWeek(new Date(year, 11, 10), { weekStartsOn: 1 })) }, // 10 Aralık\'ı içine alan hafta
+        { name: 'Tutum, Yatırım ve Türk Malları Haftası (Yerli Malı Haftası)', startDate: formatDateISO(new Date(year, 11, 12)), endDate: formatDateISO(new Date(year, 11, 18)) }, // 12-18 Aralık
     ];
 
     belirliGunler.forEach(g => allEvents.push({ ...g, category: CATEGORIES.BELIRLI }));
