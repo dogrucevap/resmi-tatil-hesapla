@@ -1,6 +1,6 @@
 // calculator.js
 const { format, addDays, getDay, startOfWeek, endOfWeek, lastDayOfMonth, setDate, setMonth } = require('date-fns');
-const { toGregorian } = require('hijri-date-converter');
+const moment = require('moment-hijri');
 
 // Tarihi YYYY-MM-DD formatına çeviren yardımcı fonksiyon
 const formatDateISO = (date) => format(date, 'yyyy-MM-dd');
@@ -19,28 +19,73 @@ const CATEGORIES = {
  */
 function getIslamicHolidays(year) {
     const holidays = [];
+    // Hicri yılı bulmak için Miladi yıldan 579 veya 578 çıkarılır.
+    // Daha doğru bir yaklaşım, belirli bir İslami ayın o Miladi yıldaki başlangıcını bulmaktır.
+    // moment-hijri, Miladi yıla göre Hicri tarihleri bulabilir.
 
-    // Ramazan Bayramı (1 Şevval'de başlar)
-    // Hicri yılı bulmamız gerekiyor. Genelde Gregorian - 579 = Hicri Yıl.
-    // Ancak daha doğru bir yöntem, o yıl içindeki 1 Şevval'i bulmaktır.
-    const ramadanBayramStartHijri = { hy: year - 579, hm: 10, hd: 1 }; // Tahmini Hicri Yıl
-    const ramadanBayramStart = toGregorian(ramadanBayramStartHijri.hy, ramadanBayramStartHijri.hm, ramadanBayramStartHijri.hd);
-    const ramazanBayramiDate = new Date(ramadanBayramStart.gy, ramadanBayramStart.gm - 1, ramadanBayramStart.gd);
+    // Ramazan Bayramı (1 Şevval)
+    // Önce o Miladi yıl içindeki 1 Ramazan'ı bulup, sonra Şevval'e geçmek daha doğru olabilir
+    // Ancak doğrudan Şevval'i de deneyebiliriz.
+    // moment-hijri'de aylar 0'dan başlar (Ramazan=8, Şevval=9, Zilhicce=11)
 
-    const arefeRamazan = addDays(ramazanBayramiDate, -1);
+    // Yılın başında ve sonunda farklı Hicri yıllara denk gelebilir.
+    // Bu yüzden Miladi yılın ortasındaki bir Hicri tarihi referans alıp,
+    // o Hicri yılın Şevval ve Zilhicce'sini bulmak daha güvenli olabilir.
+    // Örneğin, Miladi yılın ortası (Haziran) hangi Hicri yıla denk geliyor?
+    const midYearHijri = moment(`${year}-06-15`, 'YYYY-MM-DD').iYear();
+
+    // Ramazan Bayramı (1 Şevval)
+    const ramadanBayramStart = moment().iYear(midYearHijri).iMonth(9).iDate(1).toDate(); // Şevval = 9
+    const arefeRamazan = addDays(ramadanBayramStart, -1);
     holidays.push({ name: 'Ramazan Bayramı Arefesi', startDate: formatDateISO(arefeRamazan), endDate: formatDateISO(arefeRamazan), category: CATEGORIES.RESMI });
-    holidays.push({ name: 'Ramazan Bayramı', startDate: formatDateISO(ramazanBayramiDate), endDate: formatDateISO(addDays(ramazanBayramiDate, 2)), category: CATEGORIES.RESMI });
-    
-    // Kurban Bayramı (10 Zilhicce'de başlar)
-    const kurbanBayramStartHijri = { hy: year - 579, hm: 12, hd: 10 }; // Tahmini Hicri Yıl
-    const kurbanBayramStart = toGregorian(kurbanBayramStartHijri.hy, kurbanBayramStartHijri.hm, kurbanBayramStartHijri.hd);
-    const kurbanBayramiDate = new Date(kurbanBayramStart.gy, kurbanBayramStart.gm - 1, kurbanBayramStart.gd);
+    holidays.push({ name: 'Ramazan Bayramı', startDate: formatDateISO(ramadanBayramStart), endDate: formatDateISO(addDays(ramadanBayramStart, 2)), category: CATEGORIES.RESMI });
 
-    const arefeKurban = addDays(kurbanBayramiDate, -1);
+    // Kurban Bayramı (10 Zilhicce)
+    const kurbanBayramStart = moment().iYear(midYearHijri).iMonth(11).iDate(10).toDate(); // Zilhicce = 11
+    const arefeKurban = addDays(kurbanBayramStart, -1);
     holidays.push({ name: 'Kurban Bayramı Arefesi', startDate: formatDateISO(arefeKurban), endDate: formatDateISO(arefeKurban), category: CATEGORIES.RESMI });
-    holidays.push({ name: 'Kurban Bayramı', startDate: formatDateISO(kurbanBayramiDate), endDate: formatDateISO(addDays(kurbanBayramiDate, 3)), category: CATEGORIES.RESMI });
+    holidays.push({ name: 'Kurban Bayramı', startDate: formatDateISO(kurbanBayramStart), endDate: formatDateISO(addDays(kurbanBayramStart, 3)), category: CATEGORIES.RESMI });
+
+    // Bazen bir sonraki Hicri yılın bayramı da o Miladi yıla denk gelebilir.
+    // Veya bir önceki Hicri yılın bayramı. Bunu kontrol etmek için:
+    // Ramazan Bayramı (bir sonraki Hicri yıl)
+    const ramadanBayramStartNextHijri = moment().iYear(midYearHijri + 1).iMonth(9).iDate(1).toDate();
+    if (ramadanBayramStartNextHijri.getFullYear() === year) {
+        const arefeRamazanNext = addDays(ramadanBayramStartNextHijri, -1);
+        holidays.push({ name: 'Ramazan Bayramı Arefesi (Sonraki Hicri Yıl)', startDate: formatDateISO(arefeRamazanNext), endDate: formatDateISO(arefeRamazanNext), category: CATEGORIES.RESMI });
+        holidays.push({ name: 'Ramazan Bayramı (Sonraki Hicri Yıl)', startDate: formatDateISO(ramadanBayramStartNextHijri), endDate: formatDateISO(addDays(ramadanBayramStartNextHijri, 2)), category: CATEGORIES.RESMI });
+    }
+     // Kurban Bayramı (bir sonraki Hicri yıl)
+    const kurbanBayramStartNextHijri = moment().iYear(midYearHijri + 1).iMonth(11).iDate(10).toDate();
+    if (kurbanBayramStartNextHijri.getFullYear() === year) {
+        const arefeKurbanNext = addDays(kurbanBayramStartNextHijri, -1);
+        holidays.push({ name: 'Kurban Bayramı Arefesi (Sonraki Hicri Yıl)', startDate: formatDateISO(arefeKurbanNext), endDate: formatDateISO(arefeKurbanNext), category: CATEGORIES.RESMI });
+        holidays.push({ name: 'Kurban Bayramı (Sonraki Hicri Yıl)', startDate: formatDateISO(kurbanBayramStartNextHijri), endDate: formatDateISO(addDays(kurbanBayramStartNextHijri, 3)), category: CATEGORIES.RESMI });
+    }
+
+    // Ramazan Bayramı (bir önceki Hicri yıl)
+    const ramadanBayramStartPrevHijri = moment().iYear(midYearHijri - 1).iMonth(9).iDate(1).toDate();
+    if (ramadanBayramStartPrevHijri.getFullYear() === year) {
+        const arefeRamazanPrev = addDays(ramadanBayramStartPrevHijri, -1);
+        holidays.push({ name: 'Ramazan Bayramı Arefesi (Önceki Hicri Yıl)', startDate: formatDateISO(arefeRamazanPrev), endDate: formatDateISO(arefeRamazanPrev), category: CATEGORIES.RESMI });
+        holidays.push({ name: 'Ramazan Bayramı (Önceki Hicri Yıl)', startDate: formatDateISO(ramadanBayramStartPrevHijri), endDate: formatDateISO(addDays(ramadanBayramStartPrevHijri, 2)), category: CATEGORIES.RESMI });
+    }
+    // Kurban Bayramı (bir önceki Hicri yıl)
+    const kurbanBayramStartPrevHijri = moment().iYear(midYearHijri - 1).iMonth(11).iDate(10).toDate();
+    if (kurbanBayramStartPrevHijri.getFullYear() === year) {
+        const arefeKurbanPrev = addDays(kurbanBayramStartPrevHijri, -1);
+        holidays.push({ name: 'Kurban Bayramı Arefesi (Önceki Hicri Yıl)', startDate: formatDateISO(arefeKurbanPrev), endDate: formatDateISO(arefeKurbanPrev), category: CATEGORIES.RESMI });
+        holidays.push({ name: 'Kurban Bayramı (Önceki Hicri Yıl)', startDate: formatDateISO(kurbanBayramStartPrevHijri), endDate: formatDateISO(addDays(kurbanBayramStartPrevHijri, 3)), category: CATEGORIES.RESMI });
+    }
     
-    return holidays;
+    // Yinelenenleri kaldır (startDate ve name'e göre)
+    const uniqueHolidays = holidays.filter((holiday, index, self) =>
+        index === self.findIndex((t) => (
+            t.startDate === holiday.startDate && t.name === holiday.name
+        ))
+    );
+
+    return uniqueHolidays;
 }
 
 /**
@@ -105,7 +150,7 @@ function calculateAllDates(year) {
         { name: 'Atatürk\'ü Anma, Gençlik ve Spor Bayramı', date: new Date(year, 4, 19) },
         { name: 'Demokrasi ve Milli Birlik Günü', date: new Date(year, 6, 15) },
         { name: 'Zafer Bayramı', date: new Date(year, 7, 30) },
-        { name: 'Cumhuriyet Bayramı', date: new Date(year, 9, 29) },
+        { name: 'Cumhuriyet Bayramı', date: new Date(year, 9, 29) }, // 29 Ekim (tam gün)
     ];
     fixedHolidays.forEach(h => allEvents.push({ name: h.name, startDate: formatDateISO(h.date), endDate: formatDateISO(h.date), category: CATEGORIES.RESMI }));
     

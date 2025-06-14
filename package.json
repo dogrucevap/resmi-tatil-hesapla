@@ -1,7 +1,8 @@
 {
   "dependencies": {
     "date-fns": "^4.1.0",
-    "hijri-date-converter": "^1.0.2",
+    "moment": "^2.30.1",
+    "moment-hijri": "^3.0.0",
     "sqlite3": "^5.1.7"
   }
 }
